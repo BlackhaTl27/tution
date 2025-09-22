@@ -17,31 +17,34 @@ if($_SERVER['REQUEST_METHOD']=='POST' && isset($_POST['submit_form'])){
     fclose($fp);
 
     // Send mail to owner
-    $owner_email = "codingonly55@gmail.com";
-    $subject_owner = "New Enrollment: $name";
-    $body_owner = "Name: $name\nEmail: $email\nPhone: $phone\nCourse: $course\nMessage: $message";
-    $headers_owner = "From: $email";
-    mail($owner_email, $subject_owner, $body_owner, $headers_owner);
-
-    // Send confirmation mail to user
-    $subject_user = "Thank you for enrolling at IT Coaching Institute";
-    $body_user = "Hello $name,\n\nThank you for enrolling in our $course course.\nOur team will contact you soon.\n\nBest regards,\nIT Coaching Institute";
-    $headers_user = "From: $owner_email";
-    mail($email, $subject_user, $body_user, $headers_user);
+    $owner_email = "info@itcoaching.com"; // Change this
+    $subject = "New Enrollment: $name";
+    $body = "Name: $name\nEmail: $email\nPhone: $phone\nCourse: $course\nMessage: $message";
+    $headers = "From: $email";
+    mail($owner_email,$subject,$body,$headers);
 
     $success = true;
 }
 
-// Handle CSV download (simple admin access)
-if(isset($_GET['download']) && $_GET['download'] === 'csv'){
+// Handle CSV download
+if(isset($_GET['download_csv']) && $_GET['download_csv']=='1'){
     if(file_exists($csv_file)){
         header('Content-Type: text/csv');
         header('Content-Disposition: attachment; filename="submissions.csv"');
         readfile($csv_file);
         exit;
-    } else {
-        echo "No submissions yet.";
-        exit;
+    }
+}
+
+// Admin Panel
+$show_admin = false;
+$admin_password = "admin123"; // Change this
+$submissions = [];
+
+if(isset($_POST['admin_password']) && $_POST['admin_password'] === $admin_password){
+    $show_admin = true;
+    if(file_exists($csv_file)){
+        $submissions = array_map('str_getcsv', file($csv_file));
     }
 }
 ?>
@@ -54,40 +57,59 @@ if(isset($_GET['download']) && $_GET['download'] === 'csv'){
 <style>
 body{font-family:Arial,sans-serif;margin:0;background:#f7fafc;color:#111;}
 .container{max-width:1100px;margin:auto;padding:20px;}
-header{background:#fff;padding:10px 20px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 6px rgba(0,0,0,0.1);position:sticky;top:0;z-index:50;}
+header{background:#fff;padding:10px 20px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 6px rgba(0,0,0,0.1);}
 .logo{font-weight:bold;color:#0b76ef;font-size:24px;}
 nav ul{list-style:none;display:flex;gap:15px;padding:0;margin:0;}
 nav ul li a{text-decoration:none;color:#111;}
 .nav-buttons a{background:#0b76ef;color:#fff;padding:6px 10px;border-radius:6px;text-decoration:none;margin-left:6px;}
-.hero{background:#e0f2fe;padding:40px;margin:20px 0;border-radius:10px;text-align:center;}
-.features{display:flex;gap:10px;margin-top:15px;flex-wrap:wrap;justify-content:center;}
-.card{background:#fff;padding:15px;border-radius:8px;flex:1;min-width:220px;box-shadow:0 2px 6px rgba(0,0,0,0.1);}
+.hero{background:#e0f2fe;padding:40px;margin:20px 0;border-radius:10px;}
+.features{display:flex;gap:10px;margin-top:15px;}
+.card{background:#fff;padding:15px;border-radius:8px;flex:1;box-shadow:0 2px 6px rgba(0,0,0,0.1);}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:15px;margin-top:15px;}
 .course-card{background:#fff;padding:15px;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,0.1);}
 .tag{font-size:12px;color:#0b76ef;background:#dbeafe;padding:2px 6px;border-radius:999px;}
-.people{display:flex;gap:10px;margin-top:10px;flex-wrap:wrap;justify-content:center;}
+.people{display:flex;gap:10px;margin-top:10px;flex-wrap:wrap;}
 .person{background:#fff;padding:10px;border-radius:8px;display:flex;align-items:center;gap:10px;box-shadow:0 2px 6px rgba(0,0,0,0.1);}
 .avatar{width:50px;height:50px;background:#0b76ef;color:#fff;font-weight:bold;display:flex;align-items:center;justify-content:center;border-radius:8px;}
 table{width:100%;border-collapse:collapse;margin-top:10px;}
 th,td{padding:10px;border:1px solid #ccc;}
 th{background:#0b76ef;color:#fff;}
 form{display:grid;gap:10px;margin-top:10px;}
-input,select,textarea,button{padding:10px;border-radius:6px;border:1px solid #ccc;width:100%;}
-button{background:#0b76ef;color:#fff;border:none;cursor:pointer;transition:0.3s;}
-button:hover{background:#095ab5;}
+input,select,textarea,button{padding:8px;border-radius:6px;border:1px solid #ccc;width:100%;}
+button{background:#0b76ef;color:#fff;border:none;cursor:pointer;}
 footer{padding:15px;text-align:center;background:#fff;margin-top:20px;}
 .success-msg{color:green;margin-bottom:10px;}
-.whatsapp-float{position:fixed;width:60px;height:60px;bottom:20px;right:20px;background:#25D366;color:#fff;border-radius:50%;text-align:center;font-size:30px;box-shadow:2px 2px 5px rgba(0,0,0,0.3);z-index:100;}
-.whatsapp-float i{margin-top:14px;}
-.admin-section{background:#fff;padding:15px;margin-top:20px;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,0.1);}
-@media(max-width:768px){
-  nav ul{display:none;}
-  .features{flex-direction:column;}
-  .people{flex-direction:column;}
-}
+.admin-table{margin-top:15px;border:1px solid #ccc;}
+.admin-table th, .admin-table td{border:1px solid #ccc;padding:8px;}
+.download-btn{background:green;color:#fff;padding:6px 12px;border-radius:6px;text-decoration:none;}
+@media(max-width:900px){nav ul{display:none;}}
 </style>
 </head>
 <body>
+
+<?php if($show_admin): ?>
+<div class="container">
+  <h2>Admin Panel - Submissions</h2>
+  <a class="download-btn" href="?download_csv=1">Download CSV</a>
+  <?php if(empty($submissions)): ?>
+    <p>No submissions yet.</p>
+  <?php else: ?>
+  <table class="admin-table">
+    <tr><th>Name</th><th>Email</th><th>Phone</th><th>Course</th><th>Message</th><th>Submitted At</th></tr>
+    <?php foreach($submissions as $row): ?>
+      <tr>
+        <td><?= htmlspecialchars($row[0]) ?></td>
+        <td><?= htmlspecialchars($row[1]) ?></td>
+        <td><?= htmlspecialchars($row[2]) ?></td>
+        <td><?= htmlspecialchars($row[3]) ?></td>
+        <td><?= htmlspecialchars($row[4]) ?></td>
+        <td><?= $row[5] ?></td>
+      </tr>
+    <?php endforeach; ?>
+  </table>
+  <?php endif; ?>
+</div>
+<?php else: ?>
 
 <header>
   <div class="container" style="display:flex;align-items:center;justify-content:space-between;">
@@ -105,7 +127,8 @@ footer{padding:15px;text-align:center;background:#fff;margin-top:20px;}
     </nav>
     <div class="nav-buttons">
       <a href="tel:+911234567890">Call</a>
-      <a href="mailto:codingonly55@gmail.com">Email</a>
+      <a href="mailto:info@itcoaching.com">Email</a>
+      <a href="https://wa.me/911234567890" target="_blank">WhatsApp</a>
       <a href="#contact">Enroll</a>
     </div>
   </div>
@@ -150,7 +173,7 @@ footer{padding:15px;text-align:center;background:#fff;margin-top:20px;}
 
   <section id="contact">
     <h2>Contact & Enroll</h2>
-    <?php if($success) echo "<div class='success-msg'>Your submission has been received! A confirmation email has been sent.</div>"; ?>
+    <?php if($success) echo "<div class='success-msg'>Your submission has been received!</div>"; ?>
     <form method="post">
       <input type="hidden" name="submit_form" value="1">
       <input type="text" name="name" placeholder="Full Name" required>
@@ -165,21 +188,20 @@ footer{padding:15px;text-align:center;background:#fff;margin-top:20px;}
       <button type="submit">Submit</button>
     </form>
   </section>
-
-  <!-- Admin download section -->
-  <section class="admin-section">
-    <h3>Owner Access</h3>
-    <p>Download all submissions:</p>
-    <a href="?download=csv" target="_blank"><button>Download CSV</button></a>
-  </section>
 </main>
-
-<!-- Floating WhatsApp Button -->
-<a href="https://wa.me/911234567890" target="_blank" class="whatsapp-float"><i>💬</i></a>
 
 <footer>
   <p>© IT Coaching Institute • All rights reserved</p>
 </footer>
 
+<!-- Admin login form -->
+<div style="position:fixed;bottom:10px;right:10px;background:#fff;padding:10px;border-radius:6px;box-shadow:0 2px 6px rgba(0,0,0,0.2);">
+  <form method="post">
+    <input type="password" name="admin_password" placeholder="Admin Password">
+    <button type="submit">Login</button>
+  </form>
+</div>
+
+<?php endif; ?>
 </body>
 </html>
